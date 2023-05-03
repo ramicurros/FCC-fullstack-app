@@ -1,15 +1,25 @@
-const express = require('express')
-const app = express()
-const cors = require('cors')
-require('dotenv').config()
+const express = require('express');
+const app = express();
+const cors = require('cors');
+require('dotenv').config();
+const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+const { Schema } = mongoose;
 
-app.use(cors())
-app.use(express.static('public'))
+mongoose.connect(process.env['MONGO_URI'], { useNewUrlParser: true, useUnifiedTopology: true });
+
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(cors());
+app.use(express.static('public'));
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 });
 
+app.route('api/users').post((req, res, next)=>{
 
+}, (req, res) => {
+
+})
 
 
 
