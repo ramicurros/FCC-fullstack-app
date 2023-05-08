@@ -13,6 +13,18 @@ const newUserSchema = new Schema({
   username: {
     type: String,
     required: true
+  },
+  description: {
+    type: String,
+    default:''
+  },
+  duration: {
+    type: Number,
+    default:''
+  },
+  date: {
+    type: String,
+    default:''
   }
 })
 
@@ -26,7 +38,8 @@ const excerciseSchema = new Schema({
     required: true
   },
   date: {
-    type: String
+    type: String,
+    default: new Date().toDateString()
   }
 });
 
@@ -51,11 +64,11 @@ let Excercise = mongoose.model('Excercise', excerciseSchema);
 let UserLog = mongoose.model('UserLog', logSchema);
 
 const createNSaveUser = async (user, id) => {
-  const savedData = new User({ username: user, _id: id });
+  const data = new User({ username: user, _id: id });
   try {
     let output;
-    output = await savedData.save();
-    userList.push(output);
+    output = await data.save();
+    userList.push({username: user, _id: id});
     return output;
   } catch (error) {
     console.log(`error: ${error.message}`)
@@ -116,6 +129,19 @@ const getUser = async (id) => {
   }
 }
 
+const updateUser = async (id, excercise) => {
+  let output;
+  const userObj = await User.findById(id);
+  userObj.description = excercise.description;
+  userObj.duration = excercise.duration;
+  userObj.date = excercise.date;
+  userObj.markModified('userObj.description');
+  userObj.markModified('userObj.duration');
+  userObj.markModified('userObj.date');
+  output = await userObj.save();    
+  return output;
+}
+
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
@@ -127,15 +153,14 @@ app.get('/', (req, res) => {
 app.route('/api/users').post(async (req, res) => {
   let id = new ObjectId();
   let user = await createNSaveUser(req.body.username, id);
-  res.json(user);
+  res.json({username: user.username, _id: id});
 }).get((req, res) => {
   res.json(userList);
 })
 
 app.post('/api/users/:_id/exercises', async (req, res) => {
   let excercise;
-  let date = new Date(req.body.date);
-  if(!req.body.date) date = new Date(); 
+  let date = new Date(req.body.date); 
   if(isNaN(Date.parse(date))){
     res.json({error: 'Invalid Date'})
   } else {
@@ -145,9 +170,10 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
   console.log(`user found ${user}`)
   if (!user) res.json({ error: 'Invalid Id' });
   excercise = await createNSaveExcercise(req.body.description, req.body.duration, date);
+  let updatedUser = await updateUser(req.body[':_id'], {...excercise._doc})
   await doLog(user.username, {...excercise._doc});
   console.log(`excercise json: ${excercise}}`);
-  res.json({username: user.username, _id: req.body[':_id'], ...excercise._doc});
+  res.json(updatedUser);
 });
 
 app.get('/api/users/:_id/logs', async (req, res) => {
@@ -158,6 +184,7 @@ app.get('/api/users/:_id/logs', async (req, res) => {
     console.log(`id ${req.params._id}`);
     console.log(`log ${log}`);
     output = {...log._doc, _id: req.params.id};
+    console.log(`output ${output}`);
   } catch (error) {
     output = {error: error.message};
   }
