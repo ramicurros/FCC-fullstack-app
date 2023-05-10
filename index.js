@@ -4,13 +4,28 @@ const cors = require('cors');
 require('dotenv').config();
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const { ObjectId } = require('mongodb');
+const mongo = require('mongodb');     
+const { ObjectId } = mongo;
 const { Schema } = mongoose;
 
 mongoose.connect(process.env['MONGO_URI'], { useNewUrlParser: true, useUnifiedTopology: true });
 
-const newUserSchema = new Schema({
+const UserSchema = new Schema({
   username: {
+    type: String,
+    required: true
+  }
+}, 
+{
+  versionKey: false
+})
+
+const UserExcerciseSchema = new Schema({
+  username: {
+    type: String,
+    required: true
+  },
+  _id: {
     type: String,
     required: true
   },
@@ -24,12 +39,15 @@ const newUserSchema = new Schema({
   },
   date: {
     type: String,
-    default:''
+    default: ''
   }
+},
+{
+  versionKey: false
 })
 
 
-const logSchema = new Schema({
+const LogSchema = new Schema({
   username: {
     type: String,
     required: true
@@ -46,33 +64,32 @@ const logSchema = new Schema({
     type: Array,
     required: true  
   }
+},
+{
+  versionKey: false
 })
 
-let userList = [];
-var userLogList = [];
+const User = mongoose.model('User', UserSchema);
+const UserExcercise = mongoose.model('UserExcercise', UserExcerciseSchema);
+const UserLog = mongoose.model('UserLog', LogSchema);
 
-let User = mongoose.model('User', newUserSchema);
-let UserLog = mongoose.model('UserLog', logSchema);
-
-
-const createNSaveUser = async (user, id, logId) => {
-  const data = new User({ username: user, _id: id });
+const createNSaveUser = async (user) => {
+  const data = new User({ username: user });
   try {
     let output;
     output = await data.save();
-    userList.push({username: user, _id: id});
     return output;
   } catch (error) {
     console.log(`error: ${error.message}`)
   }
 }
 
-const createNSaveExcercise = async (desc, duration, date) => {
-  const data = new Excercise({ description: desc, duration: duration, date: date });
+const getUser = async (id) => {
   try {
-    let output;
-    output = await data.save();
-    return output;
+    const item = await User.findById(id);
+    console.log(`id ${id}`);
+    console.log(`item ${item}`);
+    return item;
   } catch (error) {
     console.log(`error: ${error.message}`)
   }
@@ -88,53 +105,46 @@ const updateLog = async (userId, excercise) => {
   return userLog;
 }
 
-const doLog = async (id, excercise) => {
-  let log;
-  const user = await getUser(id);
-  console.log(`user: ${user}`);
-  const item = await UserLog.findById(id);
+const doLog = async (user, excercise) => {
+  const item = await UserLog.findById(user._id);
   console.log(`log founded: ${item}`)
   if(!item){
-    let data = new UserLog({username: user.username, _id: id, count: 1, log: [excercise]});
+    let data = new UserLog({username: user.username, _id: user.id, count: 1, log: [excercise]});
     try {
       log = await data.save();
     } catch (error) {
       console.log(`error: ${error.message}`)
     }
   } else {
-    log = await updateLog(id, excercise);
+    log = await updateLog(user.id, excercise);
   }
   console.log(`log: ${log}`)
   return log
 }
 
-
-
-
-
-const getUser = async (id) => {
+const createNSaveExcercise = async (userId, excercise) => {
+  const user = await User.findById(userId);
+  let userExcercise = await UserExcercise.findById(userId);
+  if(!userExcercise) {
+    userExcercise = new UserExcercise({ username: user.username, _id: user._id, ...excercise});
+  } else {
+    userExcercise.description = excercise.description;
+    userExcercise.duration = excercise.duration;
+    userExcercise.date = excercise.date;
+    userExcercise.markModified('userExcercise.description');
+    userExcercise.markModified('userExcercise.duration');
+    userExcercise.markModified('userExcercise.date');
+  } 
+  let output; 
   try {
-    const item = await User.findById(id);
-    console.log(`id ${id}`);
-    console.log(`item ${item}`);
-    return item;
+    output = await userExcercise.save();
   } catch (error) {
     console.log(`error: ${error.message}`)
   }
-}
-
-const updateUser = async (id, excercise) => {
-  let output;
-  const userObj = await User.findById(id);
-  userObj.description = excercise.description;
-  userObj.duration = excercise.duration;
-  userObj.date = excercise.date;
-  userObj.markModified('userObj.description');
-  userObj.markModified('userObj.duration');
-  userObj.markModified('userObj.date');
-  output = await userObj.save();    
+  await doLog(user, excercise);
   return output;
 }
+
 
 
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -145,11 +155,10 @@ app.get('/', (req, res) => {
 });
 
 app.route('/api/users').post(async (req, res) => {
-  let id = new ObjectId().toString();
-  req.query.logId = new ObjectId().toString();
-  let user = await createNSaveUser(req.body.username, id);
-  res.json({username: user.username, _id: id});
-}).get((req, res) => {
+  let user = await createNSaveUser(req.body.username);
+  res.json(user);
+}).get(async (req, res) => {
+  const userList = await User.find();
   res.json(userList);
 })
 
@@ -164,11 +173,10 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
   let user = await getUser(req.body[':_id']);
   console.log(`user found ${user}`)
   if (!user) res.json({ error: 'Invalid Id' });
-  excercise = {description: req.body.description, duration: req.body.duration, date: date}
-  let updatedUser = await updateUser(req.body[':_id'], excercise)
-  await doLog(req.body[':_id'], excercise);
-  console.log(`excercise json: ${excercise}`);
-  res.json(updatedUser);
+  excercise = {description: req.body.description, duration: req.body.duration, date: date};
+  const userExcercise = await createNSaveExcercise(req.body[':_id'], excercise);
+  console.log(`excercise json: ${userExcercise}`);
+  res.json(userExcercise);
 });
 
 app.get('/api/users/:_id/logs', async (req, res) => {
