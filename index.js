@@ -100,7 +100,7 @@ const updateLog = async (userId, excercise) => {
   userLog.log.push(excercise);
   userLog.markModified('userLog.count');
   userLog.markModified('userLog.log');
-    userLog.count = userLog.log.length;
+  userLog.count = userLog.log.length;
   await userLog.save();
   return userLog;
 }
@@ -143,7 +143,7 @@ const createNSaveExcercise = async (userId, excercise) => {
   } catch (error) {
     console.log(`error: ${error.message}`)
   }
-  if(output) await doLog(user, excercise);
+  if (output) await doLog(user, excercise);
   return output;
 }
 
@@ -168,8 +168,8 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
   let excercise;
   let date = new Date(req.body.date).toDateString();
   if (!req.body.date) date = new Date().toDateString();
-  if(!req.body.description || !req.body.duration)
-    res.json({error: 'incomplete fields'});
+  if (!req.body.description || !req.body.duration)
+    res.json({ error: 'incomplete fields' });
   if (isNaN(Date.parse(date))) {
     res.json({ error: 'Invalid Date' });
   }
@@ -205,19 +205,23 @@ const compareDates = (d1, d2, excercise) => {
 };
 
 app.get('/api/users/:_id/logs', async (req, res) => {
-  let userLog = await UserLog.findById(req.params._id)
-  if(!userLog) res.json({error: 'invalid userId'})
-  let userExcerciseLog = userLog.log;
-  console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`)
-  const filteredLog = [];
-  let length = userExcerciseLog.length - 1;
-  if (req.query.limit) length = req.query.limit;
-  for (let i = 0; i <= length; i++) {
-    let filter = compareDates(req.query.from, req.query.to, userExcerciseLog[i]);
-    if (filter) filteredLog.push(filter);
+  let userLog = await UserLog.findById(req.params._id);
+  console.info(`log obj: ${JSON.stringify(userLog)}`)
+  if (!userLog) {
+    res.json({ error: 'invalid userLog' })
+  } else {
+    let userExcerciseLog = userLog.log;
+    console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
+    const filteredLog = [];
+    let length = userExcerciseLog.length - 1;
+    if (req.query.limit) length = req.query.limit;
+    for (let i = 0; i <= length; i++) {
+      let filter = compareDates(req.query.from, req.query.to, userExcerciseLog[i]);
+      if (filter) filteredLog.push(filter);
+    }
+    console.info(`log json: ${JSON.stringify(filteredLog)}`);
+    res.json({ username: userLog.username, _id: userLog._id, count: filteredLog.length, log: filteredLog });
   }
-  console.info(`log json: ${JSON.stringify(filteredLog)}`);
-  res.json({ username: userLog.username, _id: userLog._id, count: filteredLog.length, log: filteredLog });
 });
 
 
