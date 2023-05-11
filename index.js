@@ -159,9 +159,12 @@ app.route('/api/users').post(async (req, res) => {
 app.post('/api/users/:_id/exercises', async (req, res) => {
   let excercise;
   let date = new Date(req.body.date).toDateString();
-  if (!req.body.date) date = new Date().toDateString();
-  if (!req.body.description || !req.body.duration)
-    return res.json({ error: 'Incomplete fields' });
+  if (!req.body.date){
+    date = new Date().toDateString();
+  } 
+  if (!req.body.description || !req.body.duration){
+        return res.json({ error: 'Incomplete fields' });
+  }
   if (isNaN(Date.parse(date))) {
     return res.json({ error: 'Invalid Date' });
   }
@@ -173,12 +176,15 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
   }
   let user = await getUser(req.body[':_id']);
   console.log(`user found ${user}`)
-  if (!user) return res.json({ error: 'Invalid Id' });
+  if (!user) {
+    return res.json({ error: 'Invalid Id' });
+  } else { 
   user.description = req.body.description;
   user.duration = req.body.duration;
-  user.date = date
+  user.date = date;
   await updateLog(user);
   return res.json(user);
+  }
 });
 
 const compareDates = (d1, d2, excercise) => {
