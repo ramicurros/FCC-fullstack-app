@@ -158,10 +158,10 @@ app.get('/', (req, res) => {
 
 app.route('/api/users').post(async (req, res) => {
   let user = await createNSaveUser(req.body.username);
-  res.json(user);
+  return res.json(user);
 }).get(async (req, res) => {
   const userList = await User.find();
-  res.json(userList);
+  return res.json(userList);
 })
 
 app.post('/api/users/:_id/exercises', async (req, res) => {
@@ -169,23 +169,23 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
   let date = new Date(req.body.date).toDateString();
   if (!req.body.date) date = new Date().toDateString();
   if (!req.body.description || !req.body.duration)
-    res.json({ error: 'incomplete fields' });
+    return res.json({ error: 'incomplete fields' });
   if (isNaN(Date.parse(date))) {
-    res.json({ error: 'Invalid Date' });
+    return res.json({ error: 'Invalid Date' });
   }
   if (isNaN(req.body.duration)) {
-    res.json({ error: 'Duration must be a number in minutes' });
+    return res.json({ error: 'Duration must be a number in minutes' });
   }
   if (typeof req.body.description === 'string') {
-    res.json({ error: 'description cant be a number' });
+    return res.json({ error: 'description cant be a number' });
   }
   let user = await getUser(req.body[':_id']);
   console.log(`user found ${user}`)
-  if (!user) res.json({ error: 'Invalid Id' });
+  if (!user) return res.json({ error: 'Invalid Id' });
   excercise = { description: req.body.description, duration: req.body.duration, date: date };
   const userExcercise = await createNSaveExcercise(req.body[':_id'], excercise);
   console.log(`excercise json: ${userExcercise}`);
-  res.json(userExcercise);
+  return res.json(userExcercise);
 });
 
 const compareDates = (d1, d2, excercise) => {
@@ -208,7 +208,7 @@ app.get('/api/users/:_id/logs', async (req, res) => {
   let userLog = await UserLog.findById(req.params._id);
   console.info(`log obj: ${JSON.stringify(userLog)}`)
   if (!userLog) {
-    res.json({ error: 'invalid userLog' })
+    return res.json({ error: 'invalid userLog' })
   } else {
     let userExcerciseLog = userLog.log;
     console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
@@ -220,7 +220,7 @@ app.get('/api/users/:_id/logs', async (req, res) => {
       if (filter) filteredLog.push(filter);
     }
     console.info(`log json: ${JSON.stringify(filteredLog)}`);
-    res.json({ username: userLog.username, _id: userLog._id, count: filteredLog.length, log: filteredLog });
+    return res.json({ username: userLog.username, _id: userLog._id, count: filteredLog.length, log: filteredLog });
   }
 });
 
