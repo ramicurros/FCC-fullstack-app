@@ -204,6 +204,7 @@ const compareDates = (d1, d2, excercise) => {
 
 app.get('/api/users/:_id/logs', async (req, res) => {
   let userLog = await UserLog.findById(req.params._id)
+  if(!userLog) res.json({error: 'invalid userId'})
   let userExcerciseLog = userLog.log;
   console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`)
   const filteredLog = [];
