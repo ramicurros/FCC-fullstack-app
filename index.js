@@ -174,10 +174,10 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
     return res.json({ error: 'Invalid Date' });
   }
   if (isNaN(req.body.duration)) {
-    return res.json({ error: 'Duration must be a number in minutes' });
+    return res.json({ error: 'Duration must be a number in minutes'});
   }
-  if (typeof req.body.description === 'string') {
-    return res.json({ error: 'description cant be a number' });
+  if (typeof req.body.description !== 'string') {
+    return res.json({ error: 'description must be a string' });
   }
   let user = await getUser(req.body[':_id']);
   console.log(`user found ${user}`)
