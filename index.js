@@ -115,11 +115,13 @@ const doLog = async (user, excercise) => {
     } catch (error) {
       console.log(`error: ${error.message}`)
     }
+    console.log(`log: ${log}`)
+    return log
   } else {
     log = await updateLog(user.id, excercise);
+    console.log(`log: ${log}`)
+    return log
   }
-  console.log(`log: ${log}`)
-  return log
 }
 
 const createNSaveExcercise = async (userId, excercise) => {
