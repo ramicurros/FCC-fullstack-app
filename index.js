@@ -97,10 +97,10 @@ const getUser = async (id) => {
 
 const updateLog = async (userId, excercise) => {
   const userLog = await UserLog.findById(userId);
-  userLog.count = userLog.count + 1;
   userLog.log.push(excercise);
   userLog.markModified('userLog.count');
   userLog.markModified('userLog.log');
+    userLog.count = userLog.log.length;
   await userLog.save();
   return userLog;
 }
