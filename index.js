@@ -4,7 +4,7 @@ const cors = require('cors');
 require('dotenv').config();
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const mongo = require('mongodb');     
+const mongo = require('mongodb');
 const { ObjectId } = mongo;
 const { Schema } = mongoose;
 
@@ -15,10 +15,10 @@ const UserSchema = new Schema({
     type: String,
     required: true
   }
-}, 
-{
-  versionKey: false
-})
+},
+  {
+    versionKey: false
+  })
 
 const UserExcerciseSchema = new Schema({
   username: {
@@ -31,20 +31,20 @@ const UserExcerciseSchema = new Schema({
   },
   description: {
     type: String,
-    default:''
+    default: ''
   },
   duration: {
     type: Number,
-    default:''
+    default: ''
   },
   date: {
     type: String,
     default: ''
   }
 },
-{
-  versionKey: false
-})
+  {
+    versionKey: false
+  })
 
 
 const LogSchema = new Schema({
@@ -60,14 +60,14 @@ const LogSchema = new Schema({
     type: Number,
     required: true
   },
-  log:{
+  log: {
     type: Array,
-    required: true  
+    required: true
   }
 },
-{
-  versionKey: false
-})
+  {
+    versionKey: false
+  })
 
 const User = mongoose.model('User', UserSchema);
 const UserExcercise = mongoose.model('UserExcercise', UserExcerciseSchema);
@@ -108,8 +108,8 @@ const updateLog = async (userId, excercise) => {
 const doLog = async (user, excercise) => {
   const item = await UserLog.findById(user._id);
   console.log(`log founded: ${item}`)
-  if(!item){
-    let data = new UserLog({username: user.username, _id: user.id, count: 1, log: [excercise]});
+  if (!item) {
+    let data = new UserLog({ username: user.username, _id: user.id, count: 1, log: [excercise] });
     try {
       log = await data.save();
     } catch (error) {
@@ -125,8 +125,8 @@ const doLog = async (user, excercise) => {
 const createNSaveExcercise = async (userId, excercise) => {
   const user = await User.findById(userId);
   let userExcercise = await UserExcercise.findById(userId);
-  if(!userExcercise) {
-    userExcercise = new UserExcercise({ username: user.username, _id: user._id, ...excercise});
+  if (!userExcercise) {
+    userExcercise = new UserExcercise({ username: user.username, _id: user._id, ...excercise });
   } else {
     userExcercise.description = excercise.description;
     userExcercise.duration = excercise.duration;
@@ -134,8 +134,8 @@ const createNSaveExcercise = async (userId, excercise) => {
     userExcercise.markModified('userExcercise.description');
     userExcercise.markModified('userExcercise.duration');
     userExcercise.markModified('userExcercise.date');
-  } 
-  let output; 
+  }
+  let output;
   try {
     output = await userExcercise.save();
   } catch (error) {
@@ -164,33 +164,55 @@ app.route('/api/users').post(async (req, res) => {
 
 app.post('/api/users/:_id/exercises', async (req, res) => {
   let excercise;
-  let date = new Date(req.body.date); 
-  if(isNaN(Date.parse(date))){
-    res.json({error: 'Invalid Date'})
+  let date = new Date(req.body.date);
+  if (isNaN(Date.parse(date))) {
+    res.json({ error: 'Invalid Date' })
   } else {
     date = date.toDateString();
   }
   let user = await getUser(req.body[':_id']);
   console.log(`user found ${user}`)
   if (!user) res.json({ error: 'Invalid Id' });
-  excercise = {description: req.body.description, duration: req.body.duration, date: date};
+  excercise = { description: req.body.description, duration: req.body.duration, date: date };
   const userExcercise = await createNSaveExcercise(req.body[':_id'], excercise);
   console.log(`excercise json: ${userExcercise}`);
   res.json(userExcercise);
 });
 
-app.get('/api/users/:_id/logs', async (req, res) => {
-  let output;
-  try {
-    output = await UserLog.findById(req.params._id);
-    console.log(`id ${req.params._id}`);
-    console.log(`output ${output}`);
-  } catch (error) {
-    output = {error: error.message};
+const compareDates = (d1, d2, excercise) => {
+  let fromDate = new Date(d1).getTime();
+  let limitDate = new Date(d2).getTime();
+  let excerciseDate = new Date(excercise.date).getTime();
+  if(!d1 && !d2) return excercise
+  if(!d1 && d2){
+    if(limitDate >= excerciseDate) return excercise;
   }
-  res.json(output);
+  if(!d2 && d1){
+    if(fromDate <= excerciseDate) return excercise;
+  }
+  if (fromDate <= excerciseDate && limitDate >= excerciseDate) {
+    return excercise;
+  }
+};
+
+app.get('/api/users/:_id/logs', async (req, res) => {
+  let userLog = await UserLog.findById(req.params._id)
+  let userExcerciseLog = userLog.log;
+  console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`)
+  const filteredLog = [];
+  let length = userExcerciseLog.length - 1;
+  if(req.query.limit) length = req.query.limit; 
+  for (let i = 0; i <= length; i++){
+    let filter = compareDates(req.query.from, req.query.to, userExcerciseLog[i]);
+    if(filter) filteredLog.push(filter);
+  }
+  console.info(`log json: ${JSON.stringify(filteredLog)}`);
+  res.json({username: userLog.username, _id: userLog._id, count: filteredLog.length, log: filteredLog});
 });
+
+
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
 })
+
