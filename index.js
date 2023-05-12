@@ -31,15 +31,14 @@ const UserExcerciseSchema = new Schema({
   },
   description: {
     type: String,
-    default: ''
+    required: true
   },
   duration: {
     type: Number,
-    default: ''
+    required: true
   },
   date: {
     type: String,
-    default: ''
   }
 },
   {
@@ -147,25 +146,40 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 });
 
-app.route('/api/users').post(async (req, res) => {
-  let user = await createNSaveUser(req.body.username);
-  await doLog(user);
-  return res.json(user);
-}).get(async (req, res) => {
-  const userList = await User.find();
-  return res.json(userList);
+app.route('/api/users').post(async (req, res, next) => {
+  req.user = await createNSaveUser(req.body.username);
+  await doLog(req.user);
+  next();
+}, (req, res) => {
+  res.json(req.user);
+}).get(async (req, res, next) => {
+  req.userList = await User.find();
+  next();
+}, (req, res) => {
+  res.json(req.userList);
 })
 
-app.post('/api/users/:_id/exercises', async (req, res) => {
-  let excercise;
-  let date = new Date(req.body.date).toDateString();
+app.post('/api/users/:_id/exercises', async (req, res, next) => {
+  req.excerciseDate = new Date(req.body.date).toDateString();
   if (!req.body.date){
-    date = new Date().toDateString();
+    req.excerciseDate = new Date().toDateString();
   } 
+  user = await getUser(req.body[':_id']);
+  userExcercise = {...user._doc}
+  console.log(`user found ${user}`)
+  if (user && req.body.description && req.body.duration) {
+    userExcercise.description = req.body.description;
+    userExcercise.duration = req.body.duration;
+    userExcercise.date = req.excerciseDate;
+    console.log(`user update ${userExcercise}`) 
+    await updateLog(userExcercise);
+  } 
+  next();
+}, async (req, res) =>{
   if (!req.body.description || !req.body.duration){
-        return res.json({ error: 'Incomplete fields' });
+    return res.json({ error: 'Incomplete fields' });
   }
-  if (isNaN(Date.parse(date))) {
+  if (isNaN(Date.parse(req.excerciseDate))) {
     return res.json({ error: 'Invalid Date' });
   }
   if (isNaN(req.body.duration)) {
@@ -174,17 +188,10 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
   if (typeof req.body.description !== 'string') {
     return res.json({ error: 'Description must be a string' });
   }
-  let user = await getUser(req.body[':_id']);
-  console.log(`user found ${user}`)
   if (!user) {
     return res.json({ error: 'Invalid Id' });
-  } else { 
-  user.description = req.body.description;
-  user.duration = req.body.duration;
-  user.date = date;
-  await updateLog(user);
-  return res.json(user);
   }
+  return res.json(userExcercise);
 });
 
 const compareDates = (d1, d2, excercise) => {
@@ -203,23 +210,27 @@ const compareDates = (d1, d2, excercise) => {
   }
 };
 
-app.get('/api/users/:_id/logs', async (req, res) => {
-  let userLog = await UserLog.findById(req.params._id);
-  console.info(`log obj: ${JSON.stringify(userLog)}`)
-  if (!userLog) {
-    return res.json({ error: 'invalid userLog' })
-  } else {
-    let userExcerciseLog = userLog.log;
+app.get('/api/users/:_id/logs', async (req, res, next) => {
+  req.userLog = await UserLog.findById(req.params._id);
+  console.info(`log obj: ${JSON.stringify(req.userLog)}`);
+  if(req.userLog){
+    let userExcerciseLog = req.userLog.log;
     console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
-    const filteredLog = [];
+    req.filteredLog = [];
     let length = userExcerciseLog.length - 1;
     if (req.query.limit) length = req.query.limit;
     for (let i = 0; i <= length; i++) {
       let filter = compareDates(req.query.from, req.query.to, userExcerciseLog[i]);
-      if (filter) filteredLog.push(filter);
+      if (filter) req.filteredLog.push(filter);
     }
-    console.info(`log json: ${JSON.stringify(filteredLog)}`);
-    return res.json({ username: userLog.username, _id: userLog._id, count: filteredLog.length, log: filteredLog });
+    console.info(`log json: ${JSON.stringify(req.filteredLog)}`);
+  }
+  next();
+}, async (req, res) => {
+  if (!req.userLog) {
+    return res.json({ error: 'invalid userLog' })
+  } else {
+    return res.json({ username: req.userLog.username, _id: req.userLog._id, count: req.filteredLog.length, log: req.filteredLog });
   }
 });
 
