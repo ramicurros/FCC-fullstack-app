@@ -16,16 +16,16 @@ const UserSchema = new Schema({
     required: true
   }
 },
-  {
-    versionKey: false
-  })
+{
+  versionKey: false
+});
 
 const UserExcerciseSchema = new Schema({
   username: {
     type: String,
     required: true
   },
-  _id: {
+  user_id: {
     type: String,
     required: true
   },
@@ -38,39 +38,16 @@ const UserExcerciseSchema = new Schema({
     required: true
   },
   date: {
-    type: String,
+    type: Date
   }
 },
-  {
-    versionKey: false
-  })
-
-
-const LogSchema = new Schema({
-  username: {
-    type: String,
-    required: true
-  },
-  _id: {
-    type: String,
-    required: true
-  },
-  count: {
-    type: Number,
-    required: true
-  },
-  log: {
-    type: Array,
-    required: true
-  }
-},
-  {
-    versionKey: false
-  })
+{
+  versionKey: false
+});
 
 const User = mongoose.model('User', UserSchema);
 const UserExcercise = mongoose.model('UserExcercise', UserExcerciseSchema);
-const UserLog = mongoose.model('UserLog', LogSchema);
+
 
 const createNSaveUser = async (user) => {
   const data = new User({ username: user });
@@ -94,50 +71,16 @@ const getUser = async (id) => {
   }
 }
 
-const updateLog = async (user) => {
-  const userLog = await UserLog.findById(user._id);
-  userLog.log.push({description: user.description, duration: user.duration, date: user.date});
-  userLog.markModified('userLog.log');
-  userLog.count = userLog.log.length;
-  userLog.markModified('userLog.count');
-  await userLog.save();
-  return userLog;
-}
-
-const doLog = async (user) => {
-  let data = new UserLog({ username: user.username, _id: user.id, count: 0, log: [] });
-    try {
-      log = await data.save();
-    } catch (error) {
-      console.log(`error: ${error.message}`)
-    }
-    console.log(`log: ${log}`)
-    return log;
-}
-
-const createNSaveExcercise = async (userId, excercise) => {
-  const user = await User.findById(userId);
-  let userExcercise = await UserExcercise.findById(userId);
-  if (!userExcercise) {
-    userExcercise = new UserExcercise({ username: user.username, _id: user._id, ...excercise });
-  } else {
-    userExcercise.description = excercise.description;
-    userExcercise.duration = excercise.duration;
-    userExcercise.date = excercise.date;
-    userExcercise.markModified('userExcercise.description');
-    userExcercise.markModified('userExcercise.duration');
-    userExcercise.markModified('userExcercise.date');
-  }
-  let output;
+const createNSaveExcercise = async (excercise) => {
+  const data = new UserExcercise(excercise);
   try {
-    output = await userExcercise.save();
+    let output;
+    output = await data.save();
+    return output;
   } catch (error) {
     console.log(`error: ${error.message}`)
   }
-  return output;
 }
-
-
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
@@ -148,7 +91,6 @@ app.get('/', (req, res) => {
 
 app.route('/api/users').post(async (req, res, next) => {
   req.user = await createNSaveUser(req.body.username);
-  await doLog(req.user);
   next();
 }, (req, res) => {
   res.json(req.user);
@@ -160,38 +102,14 @@ app.route('/api/users').post(async (req, res, next) => {
 })
 
 app.post('/api/users/:_id/exercises', async (req, res, next) => {
-  req.excerciseDate = new Date(req.body.date).toDateString();
-  if (!req.body.date){
-    req.excerciseDate = new Date().toDateString();
-  } 
-  user = await getUser(req.body[':_id']);
-  userExcercise = {...user._doc}
-  console.log(`user found ${user}`)
-  if (user && req.body.description && req.body.duration) {
-    userExcercise.description = req.body.description;
-    userExcercise.duration = req.body.duration;
-    userExcercise.date = req.excerciseDate;
-    console.log(`user update ${userExcercise}`) 
-    await updateLog(userExcercise);
-  } 
+  const user = await getUser(req.body[':_id']);
+  date = new Date(req.body.date).toDateString();
+  if(!req.body.date) date = new Date().toDateString();
+  req.excercise = await createNSaveExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: req.body.duration, date: date});
   next();
-}, async (req, res) =>{
-  if (!req.body.description || !req.body.duration){
-    return res.json({ error: 'Incomplete fields' });
-  }
-  if (isNaN(Date.parse(req.excerciseDate))) {
-    return res.json({ error: 'Invalid Date' });
-  }
-  if (isNaN(req.body.duration)) {
-    return res.json({ error: 'Duration must be a number in minutes'});
-  }
-  if (typeof req.body.description !== 'string') {
-    return res.json({ error: 'Description must be a string' });
-  }
-  if (!user) {
-    return res.json({ error: 'Invalid Id' });
-  }
-  return res.json(userExcercise);
+},  
+(req, res) => {
+  res.json(req.excercise);
 });
 
 const compareDates = (d1, d2, excercise) => {
@@ -211,27 +129,19 @@ const compareDates = (d1, d2, excercise) => {
 };
 
 app.get('/api/users/:_id/logs', async (req, res, next) => {
-  req.userLog = await UserLog.findById(req.params._id);
-  console.info(`log obj: ${JSON.stringify(req.userLog)}`);
-  if(req.userLog){
-    let userExcerciseLog = req.userLog.log;
-    console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
-    req.filteredLog = [];
-    let length = userExcerciseLog.length - 1;
-    if (req.query.limit) length = req.query.limit;
-    for (let i = 0; i <= length; i++) {
-      let filter = compareDates(req.query.from, req.query.to, userExcerciseLog[i]);
-      if (filter) req.filteredLog.push(filter);
-    }
-    console.info(`log json: ${JSON.stringify(req.filteredLog)}`);
+  user = await getUser(req.params._id);
+  excercises = await UserExcercise.find({user_id: req.params._id}, 'description duration date');
+  console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
+  req.filteredLog = [];
+  let length = excercises.length - 1;
+  if (req.query.limit) length = req.query.limit;
+  for (let i = 0; i <= length; i++) {
+    let filter = compareDates(req.query.from, req.query.to, excercises[i]);
+    if (filter) req.filteredLog.push(filter);
   }
   next();
-}, async (req, res) => {
-  if (!req.userLog) {
-    return res.json({ error: 'invalid userLog' })
-  } else {
-    return res.json({ username: req.userLog.username, _id: req.userLog._id, count: req.filteredLog.length, log: req.filteredLog });
-  }
+}, (req, res) => {
+    return res.json({ username: user.username, _id: user._id, count: req.filteredLog.length, log: req.filteredLog });
 });
 
 
