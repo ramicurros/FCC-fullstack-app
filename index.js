@@ -60,27 +60,6 @@ const createNSaveUser = async (user) => {
   }
 }
 
-const getUser = async (id) => {
-  try {
-    const item = await User.findById(id);
-    console.log(`id ${id}`);
-    console.log(`item ${item}`);
-    return item;
-  } catch (error) {
-    console.log(`error: ${error.message}`)
-  }
-}
-
-const createNSaveExcercise = async (excercise) => {
-  const data = new UserExcercise(excercise);
-  try {
-    let output;
-    output = await data.save();
-    return output;
-  } catch (error) {
-    console.log(`error: ${error.message}`)
-  }
-}
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
@@ -90,7 +69,8 @@ app.get('/', (req, res) => {
 });
 
 app.route('/api/users').post(async (req, res, next) => {
-  req.user = await createNSaveUser(req.body.username);
+  req.user = new User({username: req.body.username});
+  await req.user.save();
   next();
 }, (req, res) => {
   res.json(req.user);
@@ -102,14 +82,15 @@ app.route('/api/users').post(async (req, res, next) => {
 })
 
 app.post('/api/users/:_id/exercises', async (req, res, next) => {
-  const user = await getUser(req.body[':_id']);
+  user = await User.findById(req.params._id);
   date = new Date(req.body.date).toDateString();
-  if(!req.body.date) date = new Date().toDateString();
-  req.excercise = await createNSaveExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: req.body.duration, date: date});
+  if(!req.body.date) date = new Date().toDateString(); 
+  req.excercise = await new UserExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: req.body.duration, date: date});
+  await req.excercise.save();
   next();
 },  
 (req, res) => {
-  res.json(req.excercise);
+  res.json({username: user.username, user_id: user._id, description: req.body.description, duration: req.body.duration, date: date});
 });
 
 const compareDates = (d1, d2, excercise) => {
@@ -129,7 +110,7 @@ const compareDates = (d1, d2, excercise) => {
 };
 
 app.get('/api/users/:_id/logs', async (req, res, next) => {
-  user = await getUser(req.params._id);
+  user = await User.findById(req.params._id);
   excercises = await UserExcercise.find({user_id: req.params._id}, 'description duration date');
   console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
   req.filteredLog = [];
@@ -137,11 +118,11 @@ app.get('/api/users/:_id/logs', async (req, res, next) => {
   if (req.query.limit) length = req.query.limit;
   for (let i = 0; i <= length; i++) {
     let filter = compareDates(req.query.from, req.query.to, excercises[i]);
-    if (filter) req.filteredLog.push(filter);
+    if (filter) req.filteredLog.push(filter); 
   }
   next();
 }, (req, res) => {
-    return res.json({ username: user.username, _id: user._id, count: req.filteredLog.length, log: req.filteredLog });
+  res.json({ username: user.username, _id: user._id, count: req.filteredLog.length, log: req.filteredLog });
 });
 
 
