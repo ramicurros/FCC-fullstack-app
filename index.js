@@ -38,7 +38,7 @@ const UserExcerciseSchema = new Schema({
     required: true
   },
   date: {
-    type: Date
+    type: String
   }
 },
 {
@@ -83,9 +83,10 @@ app.route('/api/users').post(async (req, res, next) => {
 
 app.post('/api/users/:_id/exercises', async (req, res, next) => {
   user = await User.findById(req.params._id);
-  date = new Date(req.body.date).toDateString();
-  if(!req.body.date) date = new Date().toDateString(); 
+  date = await new Date(req.body.date).toDateString();
+  if(!req.body.date) date = await new Date().toDateString(); 
   req.excercise = await new UserExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: req.body.duration, date: date});
+  console.log(req.excercise)
   await req.excercise.save();
   next();
 },  
@@ -112,13 +113,15 @@ const compareDates = (d1, d2, excercise) => {
 app.get('/api/users/:_id/logs', async (req, res, next) => {
   user = await User.findById(req.params._id);
   excercises = await UserExcercise.find({user_id: req.params._id}, 'description duration date');
-  console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
+  console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`); 
   req.filteredLog = [];
   let length = excercises.length - 1;
   if (req.query.limit) length = req.query.limit;
   for (let i = 0; i <= length; i++) {
-    let filter = compareDates(req.query.from, req.query.to, excercises[i]);
-    if (filter) req.filteredLog.push(filter); 
+    let item = {...excercises[i]._doc};
+    item.date = new Date(item.date).toDateString();
+    let inDateItem = compareDates(req.query.from, req.query.to, item); 
+    if (inDateItem) req.filteredLog.push(inDateItem); 
   }
   next();
 }, (req, res) => {
