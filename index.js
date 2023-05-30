@@ -91,22 +91,23 @@ app.post('/api/users/:_id/exercises', async (req, res, next) => {
   next();
 },  
 (req, res) => {
-  res.json({username: user.username, user_id: user._id, description: req.body.description, duration: req.body.duration, date: date});
+  res.json({username: user.username, _id: user._id, description: req.body.description, duration: req.body.duration, date: date});
 });
 
 const compareDates = (d1, d2, excercise) => {
   let fromDate = new Date(d1).getTime();
   let limitDate = new Date(d2).getTime();
+  let excerciseItem = {description: excercise.description, duration: excercise.duration,date: excercise.date}
   let excerciseDate = new Date(excercise.date).getTime();
-  if (!d1 && !d2) return excercise
+  if (!d1 && !d2) return excerciseItem;
   if (!d1 && d2) {
-    if (limitDate >= excerciseDate) return excercise;
+    if (limitDate >= excerciseDate) return excerciseItem;
   }
   if (!d2 && d1) {
-    if (fromDate <= excerciseDate) return excercise;
+    if (fromDate <= excerciseDate) return excerciseItem;
   }
   if (fromDate <= excerciseDate && limitDate >= excerciseDate) {
-    return excercise;
+    return excerciseItem;
   }
 };
 
@@ -116,7 +117,7 @@ app.get('/api/users/:_id/logs', async (req, res, next) => {
   console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
   req.filteredLog = [];
   let length = excercises.length - 1;
-  if (req.query.limit) length = req.query.limit - 1;
+  if (req.query.limit) length = req.query.limit;
   for (let i = 0; i <= length; i++) {
     let item = { ...excercises[i]._doc };
     item.date = new Date(item.date).toDateString();
