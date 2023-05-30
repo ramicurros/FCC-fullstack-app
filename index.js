@@ -112,16 +112,16 @@ const compareDates = (d1, d2, excercise) => {
 
 app.get('/api/users/:_id/logs', async (req, res, next) => {
   user = await User.findById(req.params._id);
-  excercises = await UserExcercise.find({user_id: req.params._id}, 'description duration date');
-  console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`); 
+  excercises = await UserExcercise.find({ user_id: req.params._id }, 'description duration date');
+  console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
   req.filteredLog = [];
   let length = excercises.length - 1;
-  if (req.query.limit) length = req.query.limit;
+  if (req.query.limit) length = req.query.limit - 1;
   for (let i = 0; i <= length; i++) {
-    let item = {...excercises[i]._doc};
+    let item = { ...excercises[i]._doc };
     item.date = new Date(item.date).toDateString();
-    let inDateItem = compareDates(req.query.from, req.query.to, item); 
-    if (inDateItem) req.filteredLog.push(inDateItem); 
+    let inDateItem = await compareDates(req.query.from, req.query.to, item);
+    if (inDateItem) req.filteredLog.push(inDateItem);
   }
   next();
 }, (req, res) => {
