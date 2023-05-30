@@ -126,7 +126,7 @@ app.get('/api/users/:_id/logs', async (req, res, next) => {
   }
   next();
 }, (req, res) => {
-  res.json({ username: user.username, _id: user._id, count: req.filteredLog.length, log: req.filteredLog });
+  res.json({ username: user.username, _id: user._id, count: excercises.length, log: req.filteredLog });
 });
 
 
