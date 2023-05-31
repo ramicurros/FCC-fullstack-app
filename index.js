@@ -7,6 +7,7 @@
   const mongo = require('mongodb');
   const { ObjectId } = mongo;
   const { Schema } = mongoose;
+  const { DateTime } = require('luxon');
 
   mongoose.connect(process.env['MONGO_URI'], { useNewUrlParser: true, useUnifiedTopology: true });
 
@@ -83,9 +84,8 @@
 
   app.post('/api/users/:_id/exercises', async (req, res, next) => {
     user = await User.findById(req.params._id);
-    dateData =  await req.body.date.replace(/-/g, '\/').replace(/T.+/, '');
-    date = await new Date(dateData).toDateString();
-    if(!dateData) date = await new Date().toDateString(); 
+    date = await DateTime.fromISO(req.body.date).toJSDate().toDateString();
+    if(!req.body.date) date = await new Date().toDateString(); 
     req.excercise = await new UserExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: req.body.duration, date: date});
     console.log(req.excercise)
     await req.excercise.save();
