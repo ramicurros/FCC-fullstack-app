@@ -57,7 +57,7 @@
   });
 
   app.route('/api/users').post( async (req, res) => {
-    const user = await new User({username: req.body.username});
+    const user = new User({username: req.body.username});
     await user.save();
     res.json(user);
   }).get( async (req, res) => {
@@ -68,8 +68,8 @@
   app.post('/api/users/:_id/exercises', async (req, res) => {
     const duration = parseInt(req.body.duration);
     const user = await User.findById(req.params._id);
-    const date =  DateTime.fromISO(req.body.date).toJSDate().toDateString();
-    if(!req.body.date) date =  new Date().toDateString(); 
+    let date =  DateTime.fromISO(req.body.date).toJSDate().toDateString();
+    if(!req.body.date) date = new Date().toDateString(); 
     const excercise = new UserExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: duration, date: date});
     console.log(excercise)
     await excercise.save();
@@ -96,7 +96,7 @@
     const user = await User.findById(req.params._id);
     const excercises = await UserExcercise.find({ user_id: req.params._id });
     console.log(`excercises: ${excercises}`);
-    console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
+    console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}`);
     const filteredLog = [];
     let length = excercises.length;
     if (req.query.limit) length = req.query.limit;
