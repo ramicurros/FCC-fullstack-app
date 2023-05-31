@@ -69,7 +69,7 @@ app.get('/', (req, res) => {
 });
 
 app.route('/api/users').post(async (req, res, next) => {
-  req.user = new User({username: req.body.username});
+  req.user = await new User({username: req.body.username});
   await req.user.save();
   next();
 }, (req, res) => {
@@ -120,7 +120,7 @@ app.get('/api/users/:_id/logs', async (req, res, next) => {
   if (req.query.limit) length = req.query.limit;
   for (let i = 0; i <= length; i++) {
     let item = { ...excercises[i]._doc };
-    item.date = new Date(item.date).toDateString();
+    item.date = await new Date(item.date).toDateString();
     let inDateItem = await compareDates(req.query.from, req.query.to, item);
     if (inDateItem) req.filteredLog.push(inDateItem);
   }
