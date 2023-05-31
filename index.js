@@ -49,19 +49,6 @@
   const User = mongoose.model('User', UserSchema);
   const UserExcercise = mongoose.model('UserExcercise', UserExcerciseSchema);
 
-
-  const createNSaveUser = async (user) => {
-    const data = new User({ username: user });
-    try {
-      let output;
-      output = await data.save();
-      return output;
-    } catch (error) {
-      console.log(`error: ${error.message}`)
-    }
-  }
-
-
   app.use(bodyParser.urlencoded({ extended: false }));
   app.use(cors());
   app.use(express.static('public'));
@@ -69,66 +56,56 @@
     res.sendFile(__dirname + '/views/index.html')
   });
 
-  app.route('/api/users').post(async (req, res, next) => {
-    req.user = await new User({username: req.body.username});
-    await req.user.save();
-    next();
-  }, (req, res) => {
-    res.json(req.user);
-  }).get(async (req, res, next) => {
-    req.userList = await User.find();
-    next();
-  }, (req, res) => {
-    res.json(req.userList);
+  app.route('/api/users').post( async (req, res) => {
+    const user = await new User({username: req.body.username});
+    await user.save();
+    res.json(user);
+  }).get( async (req, res) => {
+    const userList = await User.find();
+    res.json(userList);
   })
 
-  app.post('/api/users/:_id/exercises', async (req, res, next) => {
-    duration = parseInt(req.body.duration);
-    user = await User.findById(req.params._id);
-    date =  DateTime.fromISO(req.body.date).toJSDate().toDateString();
+  app.post('/api/users/:_id/exercises', async (req, res) => {
+    const duration = parseInt(req.body.duration);
+    const user = await User.findById(req.params._id);
+    const date =  DateTime.fromISO(req.body.date).toJSDate().toDateString();
     if(!req.body.date) date =  new Date().toDateString(); 
-    req.excercise = new UserExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: duration, date: date});
-    console.log(req.excercise)
-    await req.excercise.save();
-    next();
-  },  
-  (req, res) => {
+    const excercise = new UserExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: duration, date: date});
+    console.log(excercise)
+    await excercise.save();
     res.json({username: user.username, description: req.body.description, duration: duration, date: date, _id: user._id });
   });
 
-  const compareDates = (d1, d2, excercise) => {
-    let fromDate = new Date(d1).getTime();
-    let limitDate = new Date(d2).getTime();
-    let excerciseItem = {description: excercise.description, duration: excercise.duration,date: excercise.date}
+  const compareDates = (from, to, excercise) => {
     let excerciseDate = new Date(excercise.date).getTime();
-    if (!d1 && !d2) return excerciseItem;
-    if (!d1 && d2) {
-      if (limitDate >= excerciseDate) return excerciseItem;
+    if (!from && !to) return true;
+    let fromDate = new Date(from).getTime();
+    let limitDate = new Date(to).getTime();
+    if (!from && to) {
+      if (limitDate >= excerciseDate) return true;
     }
-    if (!d2 && d1) {
-      if (fromDate <= excerciseDate) return excerciseItem;
+    if (!to && from) {
+      if (fromDate <= excerciseDate) return true;
     }
     if (fromDate <= excerciseDate && limitDate >= excerciseDate) {
-      return excerciseItem;
+      return true;
     }
   };
 
-  app.get('/api/users/:_id/logs', async (req, res, next) => {
-    user = await User.findById(req.params._id);
-    excercises = await UserExcercise.find({ user_id: req.params._id }, 'description duration date');
+  app.get('/api/users/:_id/logs', async (req, res) => {
+    const user = await User.findById(req.params._id);
+    const excercises = await UserExcercise.find({ user_id: req.params._id });
+    console.log(`excercises: ${excercises}`);
     console.log(`params: ${[req.query.limit, req.query.from, req.query.to]}}`);
-    req.filteredLog = [];
+    const filteredLog = [];
     let length = excercises.length;
     if (req.query.limit) length = req.query.limit;
     for (let i = 0; i <= length - 1; i++) {
       let item = { ...excercises[i]._doc };
-      item.date = await new Date(item.date).toDateString();
-      let inDateItem = await compareDates(req.query.from, req.query.to, item);
-      if (inDateItem) req.filteredLog.push(inDateItem);
+      if(compareDates(req.query.from, req.query.to, item));
+      filteredLog.push({description: item.description, duration: item.duration, date: item.date.toDateString()});
     }
-    next();
-  }, (req, res) => {
-    res.json({ username: user.username, _id: user._id, count: excercises.length, log: req.filteredLog });
+    res.json({ username: user.username, _id: user._id, count: excercises.length, log: filteredLog });
   });
 
 
