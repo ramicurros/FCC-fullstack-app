@@ -83,8 +83,9 @@
 
   app.post('/api/users/:_id/exercises', async (req, res, next) => {
     user = await User.findById(req.params._id);
-    date = await new Date(req.body.date.replace(/-/g, '\/')).toDateString();
-    if(!req.body.date) date = await new Date().toDateString(); 
+    dateData =  await req.body.date.replace(/-/g, '\/').replace(/T.+/, '');
+    date = await new Date(dateData).toDateString();
+    if(!dateData) date = await new Date().toDateString(); 
     req.excercise = await new UserExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: req.body.duration, date: date});
     console.log(req.excercise)
     await req.excercise.save();
