@@ -83,16 +83,17 @@
   })
 
   app.post('/api/users/:_id/exercises', async (req, res, next) => {
+    duration = parseInt(req.body.duration);
     user = await User.findById(req.params._id);
-    date = await DateTime.fromISO(req.body.date).toJSDate().toDateString();
-    if(!req.body.date) date = await new Date().toDateString(); 
-    req.excercise = await new UserExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: req.body.duration, date: date});
+    date =  DateTime.fromISO(req.body.date).toJSDate().toDateString();
+    if(!req.body.date) date =  new Date().toDateString(); 
+    req.excercise = new UserExcercise({username: user.username, user_id: user._id, description: req.body.description, duration: duration, date: date});
     console.log(req.excercise)
     await req.excercise.save();
     next();
   },  
   (req, res) => {
-    res.json({username: user.username, description: req.body.description, duration: req.body.duration, date: date, _id: user._id });
+    res.json({username: user.username, description: req.body.description, duration: duration, date: date, _id: user._id });
   });
 
   const compareDates = (d1, d2, excercise) => {
