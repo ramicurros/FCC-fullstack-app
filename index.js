@@ -92,7 +92,7 @@
     next();
   },  
   (req, res) => {
-    res.json({username: user.username, _id: user._id, description: req.body.description, duration: req.body.duration, date: date});
+    res.json({username: user.username, description: req.body.description, duration: req.body.duration, date: date, _id: user._id });
   });
 
   const compareDates = (d1, d2, excercise) => {
